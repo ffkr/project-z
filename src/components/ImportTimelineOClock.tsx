@@ -75,7 +75,7 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
         const headStartMins = timeToMinutes(head.startTime);
         const headEndMins = timeToMinutes(head.endTime);
         const totalDurationMins = headEndMins - headStartMins;
-        
+
         if (totalDurationMins <= 0) return null;
 
         // Calculate total cutoff time from cutoff sub-channels
@@ -85,7 +85,7 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
             return intAcc + getDurationMinutes(int.startTime, int.endTime);
           }, 0);
         }, 0);
-        
+
         // Net operational duration
         const netOperationalMins = totalDurationMins - totalCutoffMins;
 
@@ -114,16 +114,37 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
 
             <div className="relative">
               {/* Time markers - starting from 0m with 30m intervals */}
-              <div className="relative h-4 text-[9px] text-muted-foreground mb-1">
-                {timeMarkers.map((marker, idx) => (
-                  <span
-                    key={idx}
-                    className="absolute -translate-x-1/2"
-                    style={{ left: `${(marker.mins / totalDurationMins) * 100}%` }}
-                  >
-                    {marker.label}
-                  </span>
-                ))}
+              {/* FIX: marker text tidak boleh keluar dari batas bar Head */}
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-24 flex-shrink-0" />
+                <div className="flex-1 relative h-4 text-[9px] text-muted-foreground">
+                  {timeMarkers.map((marker, idx) => {
+                    const rawPct = (marker.mins / totalDurationMins) * 100;
+                    const pct = Math.min(100, Math.max(0, rawPct));
+
+                    // Ambang aman supaya teks tidak melewati kiri/kanan bar
+                    const EDGE_PCT = 8; // % dari lebar bar
+                    const isNearLeft = pct <= EDGE_PCT;
+                    const isNearRight = pct >= (100 - EDGE_PCT);
+
+                    const translateClass = isNearLeft
+                      ? 'translate-x-0'
+                      : isNearRight
+                        ? '-translate-x-full'
+                        : '-translate-x-1/2';
+
+                    return (
+                      <span
+                        key={idx}
+                        className={`absolute ${translateClass} whitespace-nowrap`}
+                        style={{ left: `${pct}%` }}
+                      >
+                        {marker.label}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="w-14 flex-shrink-0" />
               </div>
 
               <div className="space-y-1.5">
@@ -134,9 +155,9 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
                   </div>
                   <div className="flex-1 h-5 bg-primary/20 rounded relative overflow-hidden">
                     <div className="absolute top-0 left-0 h-full w-full bg-primary/40 rounded" />
-                    
+
                     {/* Overlay cutoff sections on head bar */}
-                    {cutoffSubs.map(sub => 
+                    {cutoffSubs.map(sub =>
                       sub.intervals.map(interval => {
                         const intStart = timeToMinutes(interval.startTime);
                         const intEnd = timeToMinutes(interval.endTime);
@@ -146,8 +167,8 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
                           <div
                             key={interval.id}
                             className="absolute top-0 h-full bg-rose-500/40 rounded-sm"
-                            style={{ 
-                              left: `${Math.max(0, left)}%`, 
+                            style={{
+                              left: `${Math.max(0, left)}%`,
                               width: `${Math.max(width, 0.5)}%`,
                               backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)'
                             }}
@@ -240,8 +261,8 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
                             <div
                               key={interval.id}
                               className="absolute top-0 h-full bg-rose-500/70 rounded-sm"
-                              style={{ 
-                                left: `${Math.max(0, left)}%`, 
+                              style={{
+                                left: `${Math.max(0, left)}%`,
                                 width: `${Math.max(width, 0.5)}%`,
                                 backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px)'
                               }}
@@ -273,9 +294,12 @@ function TimelineVisualization({ headChannels }: { headChannels: ImportHeadChann
                   <span>Pause</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-rose-500/70 rounded-sm" style={{
-                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgba(255,255,255,0.3) 1px, rgba(255,255,255,0.3) 2px)'
-                  }} />
+                  <div
+                    className="w-2 h-2 bg-rose-500/70 rounded-sm"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgba(255,255,255,0.3) 1px, rgba(255,255,255,0.3) 2px)'
+                    }}
+                  />
                   <span>Cutoff</span>
                 </div>
               </div>
@@ -296,7 +320,7 @@ export function ImportTimelineOClock({ onClose }: ImportTimelineOClockProps) {
   // Export visualization as PNG (FHD 1920x1080)
   const exportToPng = async () => {
     if (!visualizationRef.current) return;
-    
+
     setIsExporting(true);
     try {
       const canvas = await html2canvas(visualizationRef.current, {
@@ -307,7 +331,7 @@ export function ImportTimelineOClock({ onClose }: ImportTimelineOClockProps) {
         windowWidth: 1920,
         windowHeight: 1080,
       });
-      
+
       const link = document.createElement('a');
       link.download = `timeline-oclock-${Date.now()}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -431,7 +455,7 @@ export function ImportTimelineOClock({ onClose }: ImportTimelineOClockProps) {
           const lastEndMins = timeToMinutes(lastEnd);
           const headEndMins = timeToMinutes(h.endTime);
           const newEndMins = Math.min(lastEndMins + 30, headEndMins);
-          
+
           const newInterval: TimelineInterval = {
             id: generateId(),
             startTime: lastEnd,
@@ -517,7 +541,7 @@ export function ImportTimelineOClock({ onClose }: ImportTimelineOClockProps) {
         {/* Head Channels List */}
         {headChannels.map((head) => {
           const summary = getHeadSummary(head);
-          
+
           return (
             <div key={head.id} className="bg-muted/50 rounded-lg p-3 space-y-2">
               {/* Head Channel Header */}
@@ -819,7 +843,7 @@ export function ImportTimelineOClock({ onClose }: ImportTimelineOClockProps) {
             <Eye className="w-3.5 h-3.5" />
             {showVisualization ? 'Sembunyikan' : 'Tampilkan'} Visualisasi
           </button>
-          
+
           {showVisualization && (
             <button
               onClick={exportToPng}
